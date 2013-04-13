@@ -75,10 +75,10 @@ static void	config		(HWND);
 static void	about		(HWND);
 static void	init		(void);
 static void	quit		(void);
-static void	get_file_info	(char *, char *, int *);
-static int	infoDlg		(char *, HWND);
-static int	is_our_file	(char *);
-static int	play_file	(char *);
+static void	get_file_info	(const char *, char *, int *);
+static int	infoDlg		(const char *, HWND);
+static int	is_our_file	(const char *);
+static int	play_file	(const char *);
 static void	pause		(void);
 static void	unpause		(void);
 static int	is_paused	(void);
@@ -334,16 +334,16 @@ static void quit()
 {
 }
 
-static int is_our_file(char *fn)
+static int is_our_file(const char *fn)
 {
 	_D(_D_WARN "fn = %s", fn);
-	if (xmp_test_module(fn, NULL) == 0)
+	if (xmp_test_module((char *)fn, NULL) == 0)
 		return 1;
 
 	return 0;
 }
 
-static int play_file(char *fn)
+static int play_file(const char *fn)
 {
 	int maxlatency;
 	DWORD tmp;
@@ -407,7 +407,7 @@ static int play_file(char *fn)
 	//xmp_open_audio(ctx);
 
 	load_mutex = CreateMutex(NULL, TRUE, "load_mutex");
-	lret = xmp_load_module(ctx, fn);
+	lret = xmp_load_module(ctx, (char *)fn);
 	ReleaseMutex(load_mutex);
 	if (lret < 0) {
 		stop();
@@ -538,7 +538,7 @@ static void setpan(int pan)
 	mod.outMod->SetPan(pan);
 }
 
-static void SetColumn( LV_COLUMN* column, int nCol, LPTSTR str, int width, int fmt )
+static void SetColumn(LV_COLUMN* column, int nCol, LPTSTR str, int width, int fmt )
 {
 	column->mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH | LVCF_SUBITEM;
 	column->fmt = fmt;
@@ -547,7 +547,7 @@ static void SetColumn( LV_COLUMN* column, int nCol, LPTSTR str, int width, int f
 	column->pszText = str;
 }
 
-static void SetItem( LV_ITEM* item, int nRow, int nCol, LPTSTR str )
+static void SetItem(LV_ITEM* item, int nRow, int nCol, LPTSTR str )
 {
 	item->mask = LVIF_TEXT | LVIF_STATE;
 	item->state = 0;
@@ -684,14 +684,14 @@ static BOOL CALLBACK info_dialog(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 	return TRUE;
 }
 
-static int infoDlg(char *fn, HWND hwnd)
+static int infoDlg(const char *fn, HWND hwnd)
 {
 	DialogBox(mod.hDllInstance, (const char *)IDD_INFODLG, hwnd,
 							info_dialog);
 	return 0;
 }
 
-static void get_file_info(char *filename, char *title, int *length_in_ms)
+static void get_file_info(const char *filename, char *title, int *length_in_ms)
 {
 	xmp_context ctx2;
 	int lret;
@@ -717,7 +717,7 @@ static void get_file_info(char *filename, char *title, int *length_in_ms)
 	//opt->skipsmp = 1;	/* don't load samples */
 
 	load_mutex = CreateMutex(NULL, TRUE, "load_mutex");
-	lret = xmp_load_module(ctx2, filename);
+	lret = xmp_load_module(ctx2, (char *)filename);
 	ReleaseMutex(load_mutex);
 
 	if (lret < 0) {
