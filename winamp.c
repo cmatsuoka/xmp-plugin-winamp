@@ -20,7 +20,13 @@
 #define WM_WA_MPEG_EOF (WM_USER + 2)
 #define RESOL 16
 
+#define DEBUG
+
 #ifdef DEBUG
+#define _D(x...) do { printf(x); printf("\n"); } while (0)
+#define _D_CRIT "C:"
+#define _D_WARN "W:"
+#define _D_INFO "I:"
 #else
 #define _D(x...)
 #endif
@@ -60,7 +66,8 @@ typedef struct {
 	int loop;
 	int pan_amplitude;
 	int time;
-	struct xmp_module_info mod_info;
+	struct xmp_module_info mi;
+	struct xmp_frame_info fi;
 } XMPplugin_config;
 
 XMPplugin_config plugin_config;
@@ -336,7 +343,7 @@ static void quit()
 
 static int is_our_file(const char *fn)
 {
-	_D(_D_WARN "fn = %s", fn);
+	_D(_D_WARN "is_our_file: fn = %s", fn);
 	if (xmp_test_module((char *)fn, NULL) == 0)
 		return 1;
 
@@ -352,7 +359,7 @@ static int play_file(const char *fn)
 	int lret, numch;
 	int dsp;
 
-	_D("fn = %s", fn);
+	_D(_D_INFO "play_file: fn = %s", fn);
 
 	stop();				/* sanity check */
 
@@ -415,11 +422,11 @@ static int play_file(const char *fn)
 		return -1;
 	}
 
-	plugin_config.time = lret;
-	xmp_get_module_info(ctx, &plugin_config.mod_info);
+	xmp_get_module_info(ctx, &plugin_config.mi);
+	xmp_get_frame_info(ctx, &plugin_config.fi);
 
 	/* Winamp goes nuts if module has zero length */
-	if (plugin_config.mod_info.mod->len == 0) {
+	if (plugin_config.mi.mod->len == 0) {
 		stop();
 		playing = 0;
 		return -1;
@@ -441,21 +448,30 @@ static DWORD WINAPI __stdcall play_loop(void *x)
 	int rate = plugin_config.mixing_freq;
 	int ssize = RESOL / 8;
 	int t, todo;
-	struct xmp_frame_info fi;
+	char *buffer;
+	int size;
 
-	//xmp_player_start(ctx);
+	plugin_config.fi.loop_count = 0;
 	while (xmp_play_frame(ctx) == 0) {
-		xmp_get_frame_info(ctx, &fi);
+		int old_loop = plugin_config.fi.loop_count;
+
+		xmp_get_frame_info(ctx, &plugin_config.fi);
+		if (old_loop != plugin_config.fi.loop_count) {
+			break;
+		}
+		
+		buffer = plugin_config.fi.buffer;
+		size = plugin_config.fi.buffer_size;
 
 		dsp = mod.dsp_isactive();
-		n = fi.buffer_size * (dsp ? 2 : 1);
+		n = plugin_config.fi.buffer_size * (dsp ? 2 : 1);
 
 		if (dsp) {
 			/* Winamp dsp support fixed by Mirko Buffoni */
-			while (fi.buffer_size > 0) {
-				todo = (fi.buffer_size > MIX_BUFSIZE * 2) ?
-					MIX_BUFSIZE : fi.buffer_size;
-				memcpy(mix_buffer, fi.buffer, todo);
+			while (size > 0) {
+				todo = (size > MIX_BUFSIZE * 2) ?
+					MIX_BUFSIZE : size;
+				memcpy(mix_buffer, buffer, todo);
 	
 				while (mod.outMod->CanWrite() < todo * 2)
 					Sleep(20);
@@ -467,16 +483,16 @@ static DWORD WINAPI __stdcall play_loop(void *x)
 					todo / numch / ssize, RESOL, numch,
 					rate) * numch * ssize;
 				mod.outMod->Write(mix_buffer, n);
-				fi.buffer_size -= todo;
-				fi.buffer += todo;
+				size -= todo;
+				buffer += todo;
 			}
 		} else {
-			while (mod.outMod->CanWrite() < fi.buffer_size)
+			while (mod.outMod->CanWrite() < size)
 				Sleep(50);
 			t = mod.outMod->GetWrittenTime();
-			mod.SAAddPCMData(fi.buffer, numch, RESOL, t);
-			mod.VSAAddPCMData(fi.buffer, numch, RESOL, t);
-			mod.outMod->Write(fi.buffer, fi.buffer_size);
+			mod.SAAddPCMData(buffer, numch, RESOL, t);
+			mod.VSAAddPCMData(buffer, numch, RESOL, t);
+			mod.outMod->Write(buffer, size);
 		}
 	}
 
@@ -509,7 +525,7 @@ static int is_paused()
 
 static int getlength()
 {
-	return plugin_config.time;
+	return plugin_config.fi.total_time;
 }
 
 static int getoutputtime()
@@ -522,8 +538,8 @@ static int getoutputtime()
 
 static void setoutputtime(int time)
 {
-	_D("seek to %d, total %d", time, plugin_config.time);
-	xmp_seek_time(ctx, plugin_config.time);
+	_D(_D_INFO "seek to %d, total %d", time, plugin_config.fi.total_time);
+	xmp_seek_time(ctx, time);
 }
 
 static void setvolume(int volume)
@@ -697,14 +713,16 @@ static void get_file_info(const char *filename, char *title, int *length_in_ms)
 	struct xmp_frame_info fi;
 	struct xmp_options *opt;
 
-	_D(_D_WARN "filename = %s", filename);
+	_D(_D_WARN "get_file_info: filename = %s", filename);
 
 	/* Winamp docs say "if filename == NULL, current playing is used"
 	 * but it seems to pass an empty filename. I'll test for both
 	 */
 	if (filename == NULL || strlen(filename) == 0) {
 		xmp_get_module_info(ctx, &mi);
+		xmp_get_frame_info(ctx, &fi);
 		wsprintf(title, "%s", mi.mod->name);
+		*length_in_ms = fi.total_time;
 		return;
 	}
 
