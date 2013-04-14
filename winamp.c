@@ -461,10 +461,8 @@ static DWORD WINAPI __stdcall play_loop(void *x)
 					Sleep(20);
 	
 				t = mod.outMod->GetWrittenTime();
-				mod.SAAddPCMData(mix_buffer, numch,
-							RESOL, t);
-				mod.VSAAddPCMData(mix_buffer, numch,
-							RESOL, t);
+				mod.SAAddPCMData(mix_buffer, numch, RESOL, t);
+				mod.VSAAddPCMData(mix_buffer, numch, RESOL, t);
 				n = mod.dsp_dosamples((short *)mix_buffer,
 					todo / numch / ssize, RESOL, numch,
 					rate) * numch * ssize;
@@ -538,7 +536,7 @@ static void setpan(int pan)
 	mod.outMod->SetPan(pan);
 }
 
-static void SetColumn(LV_COLUMN* column, int nCol, LPTSTR str, int width, int fmt )
+static void SetColumn(LV_COLUMN* column, int nCol, LPTSTR str, int width, int fmt)
 {
 	column->mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH | LVCF_SUBITEM;
 	column->fmt = fmt;
@@ -547,7 +545,7 @@ static void SetColumn(LV_COLUMN* column, int nCol, LPTSTR str, int width, int fm
 	column->pszText = str;
 }
 
-static void SetItem(LV_ITEM* item, int nRow, int nCol, LPTSTR str )
+static void SetItem(LV_ITEM* item, int nRow, int nCol, LPTSTR str)
 {
 	item->mask = LVIF_TEXT | LVIF_STATE;
 	item->state = 0;
@@ -713,8 +711,7 @@ static void get_file_info(const char *filename, char *title, int *length_in_ms)
 	/* Create new context to load a file and get the length */
 
 	ctx2 = xmp_create_context();
-	//opt = xmp_get_options(ctx2);
-	//opt->skipsmp = 1;	/* don't load samples */
+	xmp_enable_sample_load(ctx2, 0);	/* don't load samples */
 
 	load_mutex = CreateMutex(NULL, TRUE, "load_mutex");
 	lret = xmp_load_module(ctx2, (char *)filename);
