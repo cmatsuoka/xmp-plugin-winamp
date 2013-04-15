@@ -476,7 +476,7 @@ static DWORD WINAPI __stdcall play_loop(void *x)
 				while (mod.outMod->CanWrite() < todo * 2)
 					Sleep(20);
 	
-				t = mod.outMod->GetWrittenTime();
+				t = plugin_config.fi.time; //mod.outMod->GetWrittenTime();
 				mod.SAAddPCMData(mix_buffer, numch, RESOL, t);
 				mod.VSAAddPCMData(mix_buffer, numch, RESOL, t);
 				n = mod.dsp_dosamples((short *)mix_buffer,
@@ -489,7 +489,7 @@ static DWORD WINAPI __stdcall play_loop(void *x)
 		} else {
 			while (mod.outMod->CanWrite() < size)
 				Sleep(50);
-			t = mod.outMod->GetWrittenTime();
+			t = plugin_config.fi.time; //mod.outMod->GetWrittenTime();
 			mod.SAAddPCMData(buffer, numch, RESOL, t);
 			mod.VSAAddPCMData(buffer, numch, RESOL, t);
 			mod.outMod->Write(buffer, size);
