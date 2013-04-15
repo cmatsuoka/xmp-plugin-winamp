@@ -730,7 +730,9 @@ static void get_file_info(const char *filename, char *title, int *length_in_ms)
 	/* Create new context to load a file and get the length */
 
 	ctx2 = xmp_create_context();
-	xmp_enable_sample_load(ctx2, 0);	/* don't load samples */
+
+	/* don't load samples */
+	xmp_set_player(ctx2, XMP_PLAYER_SMPCTL, XMP_SMPCTL_SKIP);
 
 	load_mutex = CreateMutex(NULL, TRUE, "load_mutex");
 	lret = xmp_load_module(ctx2, (char *)filename);
