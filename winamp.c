@@ -533,7 +533,8 @@ static int getoutputtime()
 	if (!playing)
 		return -1;
 
-	return mod.outMod->GetOutputTime();
+	return plugin_config.fi.time +
+		(mod.outMod->GetOutputTime() - mod.outMod->GetWrittenTime());
 }
 
 static void setoutputtime(int time)
